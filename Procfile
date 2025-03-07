@@ -1,1 +1,1 @@
-worker: python import discord.py
+worker: python ElGooseDiscord.py
