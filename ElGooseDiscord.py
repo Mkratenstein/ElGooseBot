@@ -4,9 +4,11 @@ from discord import app_commands
 import aiohttp
 import datetime
 from typing import Optional
-from config import TOKEN
+#from config import TOKEN
 import re
 import html  # Add import for HTML entity decoding
+import os
+TOKEN = os.getenv("TOKEN")  # Fetch the token from environment variables
 
 # Bot setup with all intents
 intents = discord.Intents.default()
