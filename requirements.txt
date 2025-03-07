@@ -1,1 +1,1 @@
-import discord.py
+ElGooseDiscord.py
