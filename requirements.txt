@@ -1,1 +1,1 @@
-ElGooseDiscord.py
+-e .
