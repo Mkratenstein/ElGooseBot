@@ -8,10 +8,8 @@ from config import TOKEN, API_BASE_URL
 import re
 import html  # Add import for HTML entity decoding
 
-# Bot setup with all intents
+# Bot setup with default intents only (no privileged intents needed for slash commands)
 intents = discord.Intents.default()
-intents.message_content = True  # Enable message content intent
-intents.members = True  # Enable members intent
 bot = commands.Bot(command_prefix="!", intents=intents)
 
 # Remove default help command to implement custom one
