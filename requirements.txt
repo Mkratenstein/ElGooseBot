@@ -1,2 +1,4 @@
-discord.py
-aiohttp
+import discord.py
+discord.py>=2.3.2
+python-dotenv>=1.0.0
+aiohttp>=3.9.1

@@ -4,18 +4,13 @@ from discord import app_commands
 import aiohttp
 import datetime
 from typing import Optional
-#from config import TOKEN
+from config import TOKEN, API_BASE_URL
 import re
 import html  # Add import for HTML entity decoding
-import os
-TOKEN = os.getenv("TOKEN")  # Fetch the token from environment variables
 
 # Bot setup with all intents
 intents = discord.Intents.default()
 bot = commands.Bot(command_prefix="!", intents=intents)
-
-# API base URL
-API_BASE_URL = "https://elgoose.net/api/v2"
 
 # Remove default help command to implement custom one
 bot.remove_command('help')
