@@ -81,6 +81,16 @@ async def fetch_show_details(show_id: str, date: str = None) -> dict:
         # Try the setlists endpoint first
         setlist_data = await fetch_api_data(f"setlists/showdate/{date}.json")
         if setlist_data and isinstance(setlist_data, list):
+            # Filter for only Goose songs
+            goose_songs = [
+                song for song in setlist_data 
+                if song.get('artist', '').lower() == 'goose' 
+                and song.get('artist_id') == 1
+            ]
+            
+            if not goose_songs:
+                return None
+                
             # Process the setlist data into sets
             sets = {}
             show_notes = None
@@ -89,7 +99,7 @@ async def fetch_show_details(show_id: str, date: str = None) -> dict:
             # Extract coach's notes from footnotes first
             note_number = 1
             footnote_map = {}  # Create a mapping of footnotes to numbers
-            for song in setlist_data:
+            for song in goose_songs:
                 if song.get('footnote'):
                     footnote = song.get('footnote')
                     if footnote not in footnote_map:
@@ -101,7 +111,7 @@ async def fetch_show_details(show_id: str, date: str = None) -> dict:
                         note_number += 1
             
             # Now process the songs with the footnote numbers
-            for song in setlist_data:
+            for song in goose_songs:
                 set_number = song.get('setnumber')
                 set_type = song.get('settype', 'Set')
                 song_name = song.get('songname', '')
