@@ -238,11 +238,12 @@ async def setlist(interaction: discord.Interaction, date: str):
         shows = show_data if isinstance(show_data, list) else [show_data]
         print(f"[Setlist] Received {len(shows)} shows")
         
-        # Filter for Goose shows on the exact date
+        # Filter for ONLY Goose shows on the exact date
         goose_shows = [
             show for show in shows 
             if show.get('artist', '').lower() == 'goose' 
             and show.get('showdate') == date
+            and show.get('artist_id') == 1  # Ensure it's the main Goose artist
         ]
         print(f"[Setlist] Found {len(goose_shows)} Goose shows for {date}")
         
