@@ -7,6 +7,7 @@ from typing import Optional
 from config import TOKEN
 import re
 import html  # Add import for HTML entity decoding
+import traceback  # Add this at the top
 
 # Bot setup with all intents
 intents = discord.Intents.default()
@@ -376,8 +377,7 @@ async def setlist(interaction: discord.Interaction, date: str):
         )
         print(f"[Setlist Error] Unexpected error: {str(e)}")
         print(f"[Setlist Error] Error type: {type(e).__name__}")
-        print(f"[Setlist Error] Stack trace:", exc_info=True)
-        
+        traceback.print_exc()  # This prints the stack trace
         if not interaction.response.is_done():
             await interaction.response.send_message(error_msg, ephemeral=True)
         else:
