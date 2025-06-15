@@ -4,16 +4,13 @@ from discord import app_commands
 import aiohttp
 import datetime
 from typing import Optional
-from config import TOKEN
+from config import TOKEN, API_BASE_URL
 import re
 import html  # Add import for HTML entity decoding
 
-# Bot setup with all intents
+# Bot setup with default intents only (no privileged intents needed for slash commands)
 intents = discord.Intents.default()
 bot = commands.Bot(command_prefix="!", intents=intents)
-
-# API base URL
-API_BASE_URL = "https://elgoose.net/api/v2"
 
 # Remove default help command to implement custom one
 bot.remove_command('help')
@@ -84,6 +81,16 @@ async def fetch_show_details(show_id: str, date: str = None) -> dict:
         # Try the setlists endpoint first
         setlist_data = await fetch_api_data(f"setlists/showdate/{date}.json")
         if setlist_data and isinstance(setlist_data, list):
+            # Filter for only Goose songs
+            goose_songs = [
+                song for song in setlist_data 
+                if song.get('artist', '').lower() == 'goose' 
+                and song.get('artist_id') == 1
+            ]
+            
+            if not goose_songs:
+                return None
+                
             # Process the setlist data into sets
             sets = {}
             show_notes = None
@@ -92,7 +99,7 @@ async def fetch_show_details(show_id: str, date: str = None) -> dict:
             # Extract coach's notes from footnotes first
             note_number = 1
             footnote_map = {}  # Create a mapping of footnotes to numbers
-            for song in setlist_data:
+            for song in goose_songs:
                 if song.get('footnote'):
                     footnote = song.get('footnote')
                     if footnote not in footnote_map:
@@ -104,7 +111,7 @@ async def fetch_show_details(show_id: str, date: str = None) -> dict:
                         note_number += 1
             
             # Now process the songs with the footnote numbers
-            for song in setlist_data:
+            for song in goose_songs:
                 set_number = song.get('setnumber')
                 set_type = song.get('settype', 'Set')
                 song_name = song.get('songname', '')
@@ -206,9 +213,14 @@ async def fetch_show_details(show_id: str, date: str = None) -> dict:
         print(f"[API] Error fetching show details: {str(e)}")
         return None
 
-@bot.tree.command(name="setlist", description="Get setlist for a specific date (YYYY-MM-DD)")
+@bot.tree.command(name="setlist", description="Get setlist for a specific date (YYYY-MM-DD or YYYY/MM/DD)")
 async def setlist(interaction: discord.Interaction, date: str):
+    """Get setlist for a specific date"""
     try:
+        # Convert date format if needed
+        if '/' in date:
+            date = date.replace('/', '-')
+        
         # Validate date format
         parsed_date = datetime.datetime.strptime(date, '%Y-%m-%d')
         print(f"[Setlist] Validated date format: {date}")
@@ -217,139 +229,52 @@ async def setlist(interaction: discord.Interaction, date: str):
         await interaction.response.defer()
         print(f"[Setlist] Response deferred")
         
-        print(f"[Setlist] Fetching data for date: {date}")
-        
-        # Try to get show data first
-        show_data = await fetch_api_data(f"shows/showdate/{date}.json")
+        # Fetch show data
+        show_data = await fetch_show_details(None, date)
         if not show_data:
-            print(f"[Setlist] No show data found, trying setlists endpoint")
-            show_data = await fetch_api_data(f"setlists/showdate/{date}.json")
-        
-        if not show_data:
-            print(f"[Setlist] No data returned from API")
             await interaction.followup.send(
-                "Unable to fetch setlist data. This could be due to:\n"
-                "• API connection issues\n"
-                "• Invalid date format on the server\n"
-                "• No setlist available for this date\n"
-                "Please try again later or contact support if the issue persists.",
-                ephemeral=True
-            )
-            return
-        
-        # Handle the array response
-        shows = show_data if isinstance(show_data, list) else [show_data]
-        print(f"[Setlist] Received {len(shows)} shows")
-        
-        # Filter for Goose shows on the exact date
-        goose_shows = [
-            show for show in shows 
-            if show.get('artist', '').lower() == 'goose' 
-            and show.get('showdate') == date
-        ]
-        print(f"[Setlist] Found {len(goose_shows)} Goose shows for {date}")
-        
-        if len(goose_shows) == 0:
-            print(f"[Setlist] No Goose shows found for date: {date}")
-            await interaction.followup.send(
-                f"No Goose shows found for {date}. This date might be:\n"
-                "• Before the band's first show\n"
-                "• A date with no performance\n"
-                "• Not yet added to the database\n\n"
-                "Note: The earliest Goose shows in the database are from 2016.",
+                f"No setlist found for {parsed_date.strftime('%B %d, %Y')}.\n"
+                "Please check the date and try again.",
                 ephemeral=True
             )
             return
 
-        # Process the first (or only) Goose show
-        show_data = goose_shows[0].copy()  # Make a copy to avoid modifying the original
-        print(f"[Setlist] Processing show data with keys: {', '.join(show_data.keys())}")
-
-        # Fetch detailed setlist information
-        setlist_data = await fetch_show_details(show_data.get('show_id'), date)
-        if setlist_data:
-            # Merge the setlist data carefully
-            for key, value in setlist_data.items():
-                if value is not None:  # Only update if we have a value
-                    show_data[key] = value
-            print(f"[Setlist] Updated show data with setlist information")
-
-        # Print full show data for debugging
-        print(f"[Setlist Debug] Full show data: {show_data}")
-
-        # Create the embed with all available information
+        # Create embed
         show_url = f"https://elgoose.net/setlists/goose-{date}.html"
         embed = discord.Embed(
             title=f"Goose - {parsed_date.strftime('%B %d, %Y')}",
-            description=f"**{html.unescape(show_data.get('venuename', 'Unknown'))}**\n{show_data.get('location', 'Unknown')}",
+            description=f"**{html.unescape(show_data.get('venuename', 'Unknown'))}**\n{show_data.get('location', 'Unknown')}\n\n[View Full Setlist on elgoose.net]({show_url})",
             color=discord.Color.from_rgb(252, 186, 3)  # Goose gold/orange color
         )
-
-        # Add setlist information
-        if 'sets' in show_data and show_data['sets']:
-            for set_data in show_data['sets']:
-                set_name = set_data.get('name', 'Set')
-                songs = set_data.get('songs', '')
-                if songs:
-                    # Clean up formatting
-                    songs = re.sub(r'\s+', ' ', songs).strip()
-                    
-                    # Clean up formatting
-                    songs = re.sub(r'\s*,\s*,+\s*', ', ', songs)  # Remove multiple commas
-                    songs = re.sub(r',\s*$', '', songs)  # Remove trailing comma
-                    songs = re.sub(r'\s*>\s*,', ' >', songs)  # Fix space before > and remove comma
-                    songs = re.sub(r'\s*->\s*,', ' ->', songs)  # Fix space before -> and remove comma
-                    songs = re.sub(r'\s+', ' ', songs)  # Normalize spaces
-                    
-                    # Replace any set name variant with 'Encore'
-                    if set_name.lower() in ['set e', 'e', 'encore']:
-                        set_name = 'Encore'
-                    
-                    # Format set name with colon
-                    set_name = f"{set_name}:"
-                    
-                    # Add a newline after each set
-                    embed.add_field(
-                        name=set_name,
-                        value=f"{songs}\n",
-                        inline=False
-                    )
-        else:
+        
+        # Add sets to embed
+        for set_info in show_data.get('sets', []):
             embed.add_field(
-                name="Note:",
-                value="Setlist information is being updated. Please check back later.",
+                name=set_info['name'],
+                value=set_info['songs'],
                 inline=False
             )
-
-        # Add coach's notes first if available
-        if show_data.get('coach_notes'):
-            if isinstance(show_data['coach_notes'], list):
-                notes = []
-                for note in show_data['coach_notes']:
-                    if isinstance(note, dict):
-                        notes.append(f"    [{note['number']}] {note['text']}")
-                if notes:
-                    embed.add_field(
-                        name="Coach's Notes:",
-                        value="\n".join(notes),
-                        inline=False
-                    )
-
-        # Add show notes if available
+        
+        # Add notes if available
         if show_data.get('notes'):
-            notes = show_data['notes']
-            # Clean up the notes text
-            notes = re.sub(r'\s+', ' ', notes).strip()
             embed.add_field(
-                name="Show Notes:",
-                value=notes,
+                name="Show Notes",
+                value=show_data['notes'],
                 inline=False
             )
-
-        # Add footer with timestamp
-        updated_at = show_data.get('updated_at', 'Unknown')
-        footer_text = f"Last updated: {updated_at}"
-        embed.set_footer(text=footer_text, icon_url="https://elgoose.net/favicon.ico")
+        
+        # Add coach's notes if available
+        if show_data.get('coach_notes'):
+            coach_notes_text = "\n".join([f"{note['number']}. {note['text']}" for note in show_data['coach_notes']])
+            embed.add_field(
+                name="Coach's Notes",
+                value=coach_notes_text,
+                inline=False
+            )
+        
+        # Add footer with link to full setlist
+        embed.set_footer(text="Click the link in the description to view the full setlist on elgoose.net")
+        embed.url = show_url  # This makes the entire embed clickable
         
         await interaction.followup.send(embed=embed)
         print(f"[Setlist] Successfully sent response for {date}")
@@ -358,14 +283,14 @@ async def setlist(interaction: discord.Interaction, date: str):
         print(f"[Setlist Error] Date format validation failed: {str(e)}")
         if not interaction.response.is_done():
             await interaction.response.send_message(
-                "Invalid date format. Please use YYYY-MM-DD format.\n"
-                "Example: 2024-03-15",
+                "Invalid date format. Please use YYYY-MM-DD or YYYY/MM/DD format.\n"
+                "Example: 2024-03-15 or 2024/03/15",
                 ephemeral=True
             )
         else:
             await interaction.followup.send(
-                "Invalid date format. Please use YYYY-MM-DD format.\n"
-                "Example: 2024-03-15",
+                "Invalid date format. Please use YYYY-MM-DD or YYYY/MM/DD format.\n"
+                "Example: 2024-03-15 or 2024/03/15",
                 ephemeral=True
             )
     except Exception as e:
