@@ -279,12 +279,12 @@ async def setlist(interaction: discord.Interaction, date: str):
         print(f"[Setlist Debug] Full show data: {show_data}")
 
         # Create embed
-        venue_name = html.unescape(show_data.get('venuename', 'Unknown')).lower().replace(' ', '-')
-        location = show_data.get('location', 'Unknown').lower().replace(' ', '-')
+        venue_name = html.unescape(show_data.get('venuename', 'Unknown')).lower().replace(' ', '-').replace(',', '')
+        location = show_data.get('location', 'Unknown').lower().replace(' ', '-').replace(',', '')
         show_url = f"https://elgoose.net/setlists/goose-{parsed_date.strftime('%B-%d-%Y').lower()}-{venue_name}-{location}.html"
         embed = discord.Embed(
             title=f"Goose - {parsed_date.strftime('%B %d, %Y')}",
-            description=f"**{html.unescape(show_data.get('venuename', 'Unknown'))}**\n{show_data.get('location', 'Unknown')}\n\n[View Full Setlist on elgoose.net]({show_url})",
+            description=f"**{html.unescape(show_data.get('venuename', 'Unknown'))}**\n{show_data.get('location', 'Unknown')}",
             color=discord.Color.from_rgb(252, 186, 3)  # Goose gold/orange color
         )
 
