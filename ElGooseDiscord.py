@@ -278,8 +278,10 @@ async def setlist(interaction: discord.Interaction, date: str):
         # Print full show data for debugging
         print(f"[Setlist Debug] Full show data: {show_data}")
 
-        # Create the embed with all available information
-        show_url = f"https://elgoose.net/setlists/goose-{date}.html"
+        # Create embed
+        venue_name = html.unescape(show_data.get('venuename', 'Unknown')).lower().replace(' ', '-')
+        location = show_data.get('location', 'Unknown').lower().replace(' ', '-')
+        show_url = f"https://elgoose.net/setlists/goose-{parsed_date.strftime('%B-%d-%Y').lower()}-{venue_name}-{location}.html"
         embed = discord.Embed(
             title=f"Goose - {parsed_date.strftime('%B %d, %Y')}",
             description=f"**{html.unescape(show_data.get('venuename', 'Unknown'))}**\n{show_data.get('location', 'Unknown')}\n\n[View Full Setlist on elgoose.net]({show_url})",
@@ -322,35 +324,25 @@ async def setlist(interaction: discord.Interaction, date: str):
                 inline=False
             )
 
-        # Add coach's notes first if available
+        # Add coach's notes if available
         if show_data.get('coach_notes'):
-            if isinstance(show_data['coach_notes'], list):
-                notes = []
-                for note in show_data['coach_notes']:
-                    if isinstance(note, dict):
-                        notes.append(f"    [{note['number']}] {note['text']}")
-                if notes:
-                    embed.add_field(
-                        name="Coach's Notes:",
-                        value="\n".join(notes),
-                        inline=False
-                    )
-
-        # Add show notes if available
-        if show_data.get('notes'):
-            notes = show_data['notes']
-            # Clean up the notes text
-            notes = re.sub(r'\s+', ' ', notes).strip()
+            coach_notes_text = "\n".join([f"{note['number']}. {note['text']}" for note in show_data['coach_notes']])
             embed.add_field(
-                name="Show Notes:",
-                value=notes,
+                name="Coach's Notes",
+                value=coach_notes_text,
                 inline=False
             )
-
-        # Add footer with timestamp
-        updated_at = show_data.get('updated_at', 'Unknown')
-        footer_text = f"Last updated: {updated_at}"
-        embed.set_footer(text=footer_text, icon_url="https://elgoose.net/favicon.ico")
+        
+        # Add clickable URL under Coach's Notes
+        embed.add_field(
+            name="Full Setlist",
+            value=f"[View Full Setlist on elgoose.net]({show_url})",
+            inline=False
+        )
+        
+        # Add footer with link to full setlist
+        embed.set_footer(text="Click the link above to view the full setlist on elgoose.net")
+        embed.url = show_url  # This makes the entire embed clickable
         
         await interaction.followup.send(embed=embed)
         print(f"[Setlist] Successfully sent response for {date}")
