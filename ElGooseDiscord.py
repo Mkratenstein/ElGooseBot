@@ -371,11 +371,16 @@ async def live(interaction: discord.Interaction):
 
 @bot.tree.command(name="stop", description="Stop live setlist tracking.")
 async def stop(interaction: discord.Interaction):
+    print("[StopCommand] /stop command received.")
     if not live_setlist_tracker:
+        print("[StopCommand] Live setlist tracker is not initialized.")
         await interaction.response.send_message("Live setlist tracker is not initialized.", ephemeral=True)
         return
         
+    print("[StopCommand] Calling tracker.stop().")
     response = await live_setlist_tracker.stop()
+    print(f"[StopCommand] Received response from tracker: '{response}'")
     await interaction.response.send_message(response, ephemeral=True)
+    print("[StopCommand] Sent confirmation message to user.")
 
 bot.run(TOKEN)

@@ -20,12 +20,23 @@ class LiveSetlist:
         return "Live setlist tracking has started."
 
     async def stop(self):
+        print(f"[LiveTracker] Stop method called. Current state: is_running={self.is_running}")
         if not self.is_running:
+            print("[LiveTracker] Tracker is not active. Nothing to stop.")
             return "Live setlist tracking is not active."
 
         self.is_running = False
+        print("[LiveTracker] Set is_running to False.")
         if self.task:
+            print("[LiveTracker] Cancelling tracker task.")
             self.task.cancel()
+            try:
+                await self.task
+            except asyncio.CancelledError:
+                print("[LiveTracker] Task successfully cancelled.")
+        else:
+            print("[LiveTracker] No task found to cancel.")
+            
         return "Live setlist tracking has been stopped."
 
     async def _run_tracker(self):
@@ -78,12 +89,18 @@ class LiveSetlist:
         today = datetime.now().strftime('%Y-%m-%d')
         show_data = await self.api_fetcher(None, today)
 
+        print(f"[LiveTracker] Fetched show_data: {show_data}")
+
         if not show_data:
+            print("[LiveTracker] No show data found. Posting 'No show scheduled' message.")
             await message.edit(content=f"No show scheduled for today ({today}). Waiting for data...", embed=None)
             return
 
         embed = self._create_embed(show_data, today)
+        
+        print("[LiveTracker] Embed created. Attempting to edit message.")
         await message.edit(content=None, embed=embed)
+        print("[LiveTracker] Message successfully edited.")
 
     def _create_embed(self, show_data, date):
         parsed_date = datetime.strptime(date, '%Y-%m-%d')
