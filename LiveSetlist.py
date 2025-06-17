@@ -2,7 +2,7 @@ import discord
 import asyncio
 from datetime import datetime, timedelta
 import html
-from ElGooseDiscord import APIError
+from exceptions import APIError
 
 class LiveSetlist:
     def __init__(self, bot, channel_id, api_fetcher):

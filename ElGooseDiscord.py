@@ -9,6 +9,7 @@ import re
 import html  # Add import for HTML entity decoding
 import traceback  # Add this at the top
 from LiveSetlist import LiveSetlist
+from exceptions import APIError
 
 # Bot setup with all intents
 intents = discord.Intents.default()
@@ -22,10 +23,6 @@ bot.remove_command('help')
 
 CHANNEL_ID = 1384576172922503271
 live_setlist_tracker = None
-
-class APIError(Exception):
-    """Custom exception for API-related errors."""
-    pass
 
 @bot.event
 async def on_ready():
