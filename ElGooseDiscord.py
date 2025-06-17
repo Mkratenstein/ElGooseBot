@@ -8,6 +8,7 @@ from config import TOKEN
 import re
 import html  # Add import for HTML entity decoding
 import traceback  # Add this at the top
+from LiveSetlist import LiveSetlist
 
 # Bot setup with all intents
 intents = discord.Intents.default()
@@ -19,12 +20,17 @@ API_BASE_URL = "https://elgoose.net/api/v2"
 # Remove default help command to implement custom one
 bot.remove_command('help')
 
+CHANNEL_ID = 1384576172922503271
+live_setlist_tracker = None
+
 @bot.event
 async def on_ready():
+    global live_setlist_tracker
     print(f'Logged in as {bot.user.name}')
     try:
         synced = await bot.tree.sync()
         print(f"Synced {len(synced)} command(s)")
+        live_setlist_tracker = LiveSetlist(bot, CHANNEL_ID, fetch_show_details)
     except Exception as e:
         print(f"Failed to sync commands: {e}")
 
@@ -392,5 +398,23 @@ async def help(interaction: discord.Interaction):
         embed.add_field(name=command, value=description, inline=False)
 
     await interaction.response.send_message(embed=embed)
+
+@bot.tree.command(name="live", description="Start live setlist tracking.")
+async def live(interaction: discord.Interaction):
+    if not live_setlist_tracker:
+        await interaction.response.send_message("Live setlist tracker is not initialized.", ephemeral=True)
+        return
+    
+    response = await live_setlist_tracker.start()
+    await interaction.response.send_message(response, ephemeral=True)
+
+@bot.tree.command(name="stop", description="Stop live setlist tracking.")
+async def stop(interaction: discord.Interaction):
+    if not live_setlist_tracker:
+        await interaction.response.send_message("Live setlist tracker is not initialized.", ephemeral=True)
+        return
+        
+    response = await live_setlist_tracker.stop()
+    await interaction.response.send_message(response, ephemeral=True)
 
 bot.run(TOKEN)
