@@ -2,6 +2,7 @@ import discord
 import asyncio
 from datetime import datetime, timedelta
 import html
+from ElGooseDiscord import APIError
 
 class LiveSetlist:
     def __init__(self, bot, channel_id, api_fetcher):
@@ -87,20 +88,29 @@ class LiveSetlist:
 
     async def _update_setlist(self, message):
         today = datetime.now().strftime('%Y-%m-%d')
-        show_data = await self.api_fetcher(None, today)
-
-        print(f"[LiveTracker] Fetched show_data: {show_data}")
-
-        if not show_data:
-            print("[LiveTracker] No show data found. Posting 'No show scheduled' message.")
-            await message.edit(content=f"No show scheduled for today ({today}). Waiting for data...", embed=None)
-            return
-
-        embed = self._create_embed(show_data, today)
         
-        print("[LiveTracker] Embed created. Attempting to edit message.")
-        await message.edit(content=None, embed=embed)
-        print("[LiveTracker] Message successfully edited.")
+        try:
+            show_data = await self.api_fetcher(None, today)
+            print(f"[LiveTracker] Fetched show_data: {show_data}")
+
+            if not show_data:
+                print("[LiveTracker] No show data found. Posting 'No show scheduled' message.")
+                await message.edit(content=f"No show scheduled for today ({today}). Waiting for data...", embed=None)
+                return
+
+            embed = self._create_embed(show_data, today)
+            
+            print("[LiveTracker] Embed created. Attempting to edit message.")
+            await message.edit(content=None, embed=embed)
+            print("[LiveTracker] Message successfully edited.")
+            
+        except APIError as e:
+            print(f"[LiveTracker] An API error occurred: {e}")
+            await message.edit(content=f"Could not connect to the elgoose.net API. Retrying in 5 minutes...", embed=None)
+        except Exception as e:
+            print(f"[LiveTracker] An unexpected error occurred in _update_setlist: {e}")
+            # Optional: Send a more generic error message to Discord
+            await message.edit(content="An unexpected error occurred. See logs for details.", embed=None)
 
     def _create_embed(self, show_data, date):
         parsed_date = datetime.strptime(date, '%Y-%m-%d')
