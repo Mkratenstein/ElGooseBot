@@ -48,7 +48,7 @@ class LiveSetlist:
         message = None
 
         try:
-            message = await channel.send("Starting live setlist tracking...")
+            message = await channel.send("Starting live setlist tracking... Waiting for show data.")
             print(f"Successfully started live tracking in channel {self.channel_id}.")
         except discord.Forbidden:
             print(f"Error: No permissions to send messages in channel {self.channel_id}. Check channel-specific permissions.")
@@ -70,7 +70,7 @@ class LiveSetlist:
         self.is_running = False
         if message:
             try:
-                await message.edit(content="Live setlist tracking has ended.")
+                await message.edit(content="Live setlist tracking has ended.", embed=None)
             except Exception as e:
                 print(f"Error editing final message: {e}")
 
@@ -79,11 +79,11 @@ class LiveSetlist:
         show_data = await self.api_fetcher(None, today)
 
         if not show_data:
-            await message.edit(content=f"No setlist found for {today}. Retrying in 5 minutes...")
+            await message.edit(content=f"No show scheduled for today ({today}). Waiting for data...", embed=None)
             return
 
         embed = self._create_embed(show_data, today)
-        await message.edit(embed=embed)
+        await message.edit(content=None, embed=embed)
 
     def _create_embed(self, show_data, date):
         parsed_date = datetime.strptime(date, '%Y-%m-%d')
