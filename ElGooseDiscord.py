@@ -10,6 +10,7 @@ import html  # Add import for HTML entity decoding
 import traceback  # Add this at the top
 from LiveSetlist import LiveSetlist
 from exceptions import APIError
+from embeds import create_setlist_embed
 
 # Bot setup with all intents
 intents = discord.Intents.default()
@@ -35,38 +36,57 @@ async def on_ready():
     except Exception as e:
         print(f"Failed to sync commands: {e}")
 
-def create_setlist_embed(show_data: dict, is_live: bool = False) -> discord.Embed:
-    """Creates a standardized Discord embed for setlist information."""
-    date_str = show_data.get('showdate')
-    parsed_date = datetime.datetime.strptime(date_str, '%Y-%m-%d')
-    
-    venue_name = html.unescape(show_data.get('venuename', 'Unknown Venue'))
-    location = show_data.get('location', 'Unknown Location')
-    
-    permalink = show_data.get('permalink')
-    show_url = f"https://elgoose.net/setlists/{permalink}" if permalink else "https://elgoose.net"
+def _process_setlist_data(base_show_data: dict, setlist_data: list) -> dict:
+    """Processes raw setlist data and merges it into the base show data."""
+    final_show_data = base_show_data.copy()
+    if not setlist_data or not isinstance(setlist_data, list):
+        return final_show_data
 
-    embed = discord.Embed(
-        title=f"Goose - {parsed_date.strftime('%B %d, %Y')}",
-        url=show_url,
-        description=f"**{venue_name}**\n{location}",
-        color=discord.Color.from_rgb(252, 186, 3)
-    )
+    goose_songs = [s for s in setlist_data if s.get('artist', '').lower() == 'goose']
+    if not goose_songs:
+        return final_show_data
 
-    for set_info in show_data.get('sets', []):
-        embed.add_field(name=set_info['name'], value=set_info['songs'] or "TBA", inline=False)
-    
-    if show_data.get('notes'):
-        embed.add_field(name="Show Notes", value=show_data['notes'], inline=False)
-    
-    if show_data.get('coach_notes'):
-        notes = "\n".join([f"{n['number']}. {n['text']}" for n in show_data['coach_notes']])
-        embed.add_field(name="Coach's Notes", value=notes, inline=False)
+    sets = {}
+    show_notes = None
+    coach_notes = []
+    footnote_map = {}
+    note_number = 1
 
-    if is_live:
-        embed.set_footer(text="Live setlist tracking. Updates every 5 minutes.")
-    
-    return embed
+    for song in goose_songs:
+        if footnote := song.get('footnote'):
+            if footnote not in footnote_map:
+                footnote_map[footnote] = str(note_number)
+                coach_notes.append({"number": str(note_number), "text": footnote})
+                note_number += 1
+
+    for song in goose_songs:
+        set_key = 'Encore' if song.get('settype', '').lower() in ['encore', 'e'] else f"Set {song.get('setnumber')}"
+        if set_key not in sets:
+            sets[set_key] = ""
+
+        song_text = song.get('songname', '')
+        if footnote := song.get('footnote'):
+            song_text += f"[{footnote_map.get(footnote, '?')}]"
+        
+        sets[set_key] += song_text + song.get('transition', '').strip() + " "
+        
+        if notes := song.get('shownotes'):
+            show_notes = notes
+
+    formatted_sets = []
+    for name, songs in sets.items():
+        cleaned_songs = songs.strip()
+        if cleaned_songs.endswith(',') or cleaned_songs.endswith('>'):
+            cleaned_songs = cleaned_songs[:-1].strip()
+        formatted_sets.append({"name": name, "songs": cleaned_songs})
+
+    final_show_data['sets'] = formatted_sets
+    if show_notes:
+        final_show_data['notes'] = show_notes
+    if coach_notes:
+        final_show_data['coach_notes'] = coach_notes
+        
+    return final_show_data
 
 async def fetch_api_data(endpoint: str) -> dict:
     """Helper function to fetch data from the API with enhanced error handling"""
@@ -109,104 +129,25 @@ async def fetch_api_data(endpoint: str) -> dict:
 
 async def fetch_show_details(show_id: str, date: str = None) -> dict:
     """Helper function to fetch detailed show information including setlist"""
-    final_show_data = None
     try:
-        # First, get the basic show information to confirm a show exists
         base_show_data_list = await fetch_api_data(f"shows/showdate/{date}.json")
-        
         if not base_show_data_list or not isinstance(base_show_data_list, list):
-            return None  # No show scheduled for this date
+            return None
 
-        # Filter for the correct Goose show on the specified date
-        final_show_data = next((show for show in base_show_data_list if show.get('artist', '').lower() == 'goose' and show.get('showdate') == date), None)
-
+        final_show_data = next((show for show in base_show_data_list if show.get('artist', '').lower() == 'goose'), None)
         if not final_show_data:
-            return None # No Goose show found for this date
+            return None
     except APIError as e:
         print(f"[ShowDetails] Could not fetch base show data: {e}")
-        return None # Can't proceed without base data
-        
+        return None
+
     try:
-        # Now, try to get the setlist details
         setlist_data = await fetch_api_data(f"setlists/showdate/{date}.json")
-        
-        if setlist_data and isinstance(setlist_data, list):
-            # Filter for only Goose songs
-            goose_songs = [
-                song for song in setlist_data 
-                if song.get('artist', '').lower() == 'goose' 
-                and song.get('artist_id') == 1
-            ]
-            
-            if goose_songs:
-                # Process the setlist data into sets
-                sets = {}
-                show_notes = None
-                coach_notes = []  # Initialize coach_notes list first
-                
-                # Extract coach's notes from footnotes first
-                note_number = 1
-                footnote_map = {}  # Create a mapping of footnotes to numbers
-                for song in goose_songs:
-                    if song.get('footnote'):
-                        footnote = song.get('footnote')
-                        if footnote not in footnote_map:
-                            footnote_map[footnote] = str(note_number)
-                            coach_notes.append({
-                                "number": str(note_number),
-                                "text": footnote
-                            })
-                            note_number += 1
-                
-                # Re-initialize sets to store the formatted string directly
-                sets = {}
-                
-                # Now process the songs with the footnote numbers
-                for song in goose_songs:
-                    set_number = song.get('setnumber')
-                    set_type = song.get('settype', 'Set')
-                    song_name = song.get('songname', '')
-                    transition = song.get('transition', '')
-                    footnote = song.get('footnote', '')
-                    
-                    if song.get('shownotes'):
-                        show_notes = song.get('shownotes')
-                    
-                    song_text = song_name
-                    if footnote:
-                        song_text += f"[{footnote_map.get(footnote, '?')}]"
-                    
-                    set_key = 'Encore' if set_type.lower() in ['encore', 'e'] else f'Set {set_number}'
-                    if set_key not in sets:
-                        sets[set_key] = ""
-
-                    # Add the song and its transition to build the set string
-                    sets[set_key] += song_text + transition.strip() + " "
-                
-                # Convert sets to list format and clean up trailing characters
-                formatted_sets = []
-                for set_name, songs_string in sets.items():
-                    # Strip trailing whitespace and any lingering separators
-                    cleaned_songs = songs_string.strip()
-                    if cleaned_songs.endswith(',') or cleaned_songs.endswith('>'):
-                        cleaned_songs = cleaned_songs[:-1].strip()
-
-                    formatted_sets.append({
-                        "name": set_name,
-                        "songs": cleaned_songs
-                    })
-                
-                # Merge the processed setlist data into our main show data object
-                final_show_data['sets'] = formatted_sets
-                if show_notes:
-                    final_show_data['notes'] = show_notes
-                if coach_notes:
-                    final_show_data['coach_notes'] = coach_notes
+        # Process and merge setlist data if available
+        return _process_setlist_data(final_show_data, setlist_data)
     except APIError as e:
         print(f"[ShowDetails] Could not fetch setlist details: {e}. Returning base show info.")
-        # We can continue without setlist data, so we just return what we have.
-    
-    return final_show_data
+        return final_show_data  # Return base data if setlist fails
 
 @bot.tree.command(name="setlist", description="Get setlist for a specific date (YYYY-MM-DD or YYYY/MM/DD)")
 async def setlist(interaction: discord.Interaction, date: str):
@@ -223,10 +164,7 @@ async def setlist(interaction: discord.Interaction, date: str):
         print(f"[Setlist] Fetching data for date: {date}")
         
         # Try to get show data first
-        show_data = await fetch_api_data(f"shows/showdate/{date}.json")
-        if not show_data:
-            print(f"[Setlist] No show data found, trying setlists endpoint")
-            show_data = await fetch_api_data(f"setlists/showdate/{date}.json")
+        show_data = await fetch_show_details(None, date)
         
         if not show_data:
             print(f"[Setlist] No data returned from API")
@@ -240,46 +178,6 @@ async def setlist(interaction: discord.Interaction, date: str):
             )
             return
         
-        # Handle the array response
-        shows = show_data if isinstance(show_data, list) else [show_data]
-        print(f"[Setlist] Received {len(shows)} shows")
-        
-        # Filter for Goose shows on the exact date
-        goose_shows = [
-            show for show in shows 
-            if show.get('artist', '').lower() == 'goose' 
-            and show.get('showdate') == date
-        ]
-        print(f"[Setlist] Found {len(goose_shows)} Goose shows for {date}")
-        
-        if len(goose_shows) == 0:
-            print(f"[Setlist] No Goose shows found for date: {date}")
-            await interaction.followup.send(
-                f"No Goose shows found for {date}. This date might be:\n"
-                "• Before the band's first show\n"
-                "• A date with no performance\n"
-                "• Not yet added to the database\n\n"
-                "Note: The earliest Goose shows in the database are from 2016.",
-                ephemeral=True
-            )
-            return
-
-        # Process the first (or only) Goose show
-        show_data = goose_shows[0].copy()  # Make a copy to avoid modifying the original
-        print(f"[Setlist] Processing show data with keys: {', '.join(show_data.keys())}")
-
-        # Fetch detailed setlist information
-        setlist_data = await fetch_show_details(show_data.get('show_id'), date)
-        if setlist_data:
-            # Merge the setlist data carefully
-            for key, value in setlist_data.items():
-                if value is not None:  # Only update if we have a value
-                    show_data[key] = value
-            print(f"[Setlist] Updated show data with setlist information")
-
-        # Print full show data for debugging
-        print(f"[Setlist Debug] Full show data: {show_data}")
-
         # Create embed using the new centralized function
         embed = create_setlist_embed(show_data)
         

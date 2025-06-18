@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 import html
 import pytz
 from exceptions import APIError
-from ElGooseDiscord import create_setlist_embed
+from embeds import create_setlist_embed
 
 class LiveSetlist:
     def __init__(self, bot, channel_id, api_fetcher):
@@ -112,9 +112,4 @@ class LiveSetlist:
         except Exception as e:
             print(f"[LiveTracker] An unexpected error occurred in _update_setlist: {e}")
             # Optional: Send a more generic error message to Discord
-            await message.edit(content="An unexpected error occurred. See logs for details.", embed=None)
-
-    def _create_embed(self, show_data, date):
-        # This method is no longer used, but we'll keep it for now to avoid breaking anything
-        # that might be referencing it unexpectedly. It can be removed in a future cleanup.
-        pass 
+            await message.edit(content="An unexpected error occurred. See logs for details.", embed=None) 
