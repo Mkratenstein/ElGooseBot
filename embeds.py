@@ -21,14 +21,14 @@ def create_setlist_embed(show_data: dict, is_live: bool = False) -> discord.Embe
     )
 
     for set_info in show_data.get('sets', []):
-        embed.add_field(name=set_info['name'], value=set_info['songs'] or "TBA", inline=False)
+        embed.add_field(name=f"**{set_info['name']}:**", value=set_info['songs'] or "TBA", inline=False)
     
     if show_data.get('notes'):
-        embed.add_field(name="Show Notes", value=show_data['notes'], inline=False)
+        embed.add_field(name="Show Notes:", value=show_data['notes'], inline=False)
     
     if show_data.get('coach_notes'):
-        notes = "\n".join([f"{n['number']}. {n['text']}" for n in show_data['coach_notes']])
-        embed.add_field(name="Coach's Notes", value=notes, inline=False)
+        notes = "\n".join([f"[{n['number']}] {n['text']}" for n in show_data['coach_notes']])
+        embed.add_field(name="Coach's Notes:", value=notes, inline=False)
 
     if is_live:
         embed.set_footer(text="Live setlist tracking. Updates every 5 minutes.")
