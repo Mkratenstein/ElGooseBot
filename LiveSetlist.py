@@ -58,9 +58,10 @@ class LiveSetlist:
 
         end_time = datetime.now() + timedelta(hours=3.5)
         message = None
+        show_date = datetime.now().strftime('%Y-%m-%d')
 
         try:
-            message = await channel.send("Starting live setlist tracking... Waiting for show data.")
+            message = await channel.send(f"Starting live setlist tracking for {show_date}... Waiting for show data.")
             print(f"Successfully started live tracking in channel {self.channel_id}.")
         except discord.Forbidden:
             print(f"Error: No permissions to send messages in channel {self.channel_id}. Check channel-specific permissions.")
@@ -73,7 +74,7 @@ class LiveSetlist:
 
         while self.is_running and datetime.now() < end_time:
             try:
-                await self._update_setlist(message)
+                await self._update_setlist(message, show_date)
                 await asyncio.sleep(300)  # 5 minutes
             except Exception as e:
                 print(f"Error in live setlist update loop: {e}")
@@ -86,19 +87,17 @@ class LiveSetlist:
             except Exception as e:
                 print(f"Error editing final message: {e}")
 
-    async def _update_setlist(self, message):
-        today = datetime.now().strftime('%Y-%m-%d')
-        
+    async def _update_setlist(self, message, show_date):
         try:
-            show_data = await self.api_fetcher(None, today)
+            show_data = await self.api_fetcher(None, show_date)
             print(f"[LiveTracker] Fetched show_data: {show_data}")
 
             if not show_data:
                 print("[LiveTracker] No show data found. Posting 'No show scheduled' message.")
-                await message.edit(content=f"No show scheduled for today ({today}). Waiting for data...", embed=None)
+                await message.edit(content=f"No show scheduled for today ({show_date}). Waiting for data...", embed=None)
                 return
 
-            embed = self._create_embed(show_data, today)
+            embed = self._create_embed(show_data, show_date)
             
             print("[LiveTracker] Embed created. Attempting to edit message.")
             await message.edit(content=None, embed=embed)
