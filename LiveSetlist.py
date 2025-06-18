@@ -2,6 +2,7 @@ import discord
 import asyncio
 from datetime import datetime, timedelta
 import html
+import pytz
 from exceptions import APIError
 
 class LiveSetlist:
@@ -56,9 +57,10 @@ class LiveSetlist:
             self.is_running = False
             return
 
-        end_time = datetime.now() + timedelta(hours=3.5)
+        eastern_tz = pytz.timezone('America/New_York')
+        show_date = datetime.now(eastern_tz).strftime('%Y-%m-%d')
+        end_time = datetime.now(eastern_tz) + timedelta(hours=3.5)
         message = None
-        show_date = datetime.now().strftime('%Y-%m-%d')
 
         try:
             message = await channel.send(f"Starting live setlist tracking for {show_date}... Waiting for show data.")
@@ -72,7 +74,7 @@ class LiveSetlist:
             self.is_running = False
             return
 
-        while self.is_running and datetime.now() < end_time:
+        while self.is_running and datetime.now(eastern_tz) < end_time:
             try:
                 await self._update_setlist(message, show_date)
                 await asyncio.sleep(300)  # 5 minutes
