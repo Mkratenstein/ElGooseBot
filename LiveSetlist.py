@@ -62,6 +62,7 @@ class LiveSetlist:
         show_date = datetime.now(eastern_tz).strftime('%Y-%m-%d')
         end_time = datetime.now(eastern_tz) + timedelta(hours=3.5)
         message = None
+        last_show_data = None
 
         try:
             message = await channel.send(f"Starting live setlist tracking for {show_date}... Waiting for show data.")
@@ -77,7 +78,9 @@ class LiveSetlist:
 
         while self.is_running and datetime.now(eastern_tz) < end_time:
             try:
-                await self._update_setlist(message, show_date)
+                show_data_result = await self._update_setlist(message, show_date)
+                if show_data_result:
+                    last_show_data = show_data_result
                 await asyncio.sleep(300)  # 5 minutes
             except Exception as e:
                 print(f"Error in live setlist update loop: {e}")
@@ -86,9 +89,15 @@ class LiveSetlist:
         self.is_running = False
         if message:
             try:
-                await message.edit(content="Live setlist tracking has ended.", embed=None)
+                # If we have show data, edit the embed to remove the 'live' footer.
+                if last_show_data:
+                    final_embed = create_setlist_embed(last_show_data, is_live=False)
+                    await message.edit(embed=final_embed)
+                
+                # Send a new, separate message to announce the end of tracking.
+                await message.channel.send("Live setlist tracking has ended.")
             except Exception as e:
-                print(f"Error editing final message: {e}")
+                print(f"Error finalizing live tracking messages: {e}")
 
     async def _update_setlist(self, message, show_date):
         try:
@@ -98,18 +107,21 @@ class LiveSetlist:
             if not show_data:
                 print("[LiveTracker] No show data found. Posting 'No show scheduled' message.")
                 await message.edit(content=f"No show scheduled for today ({show_date}). Waiting for data...", embed=None)
-                return
+                return None
 
             embed = create_setlist_embed(show_data, is_live=True)
             
             print("[LiveTracker] Embed created. Attempting to edit message.")
             await message.edit(content=None, embed=embed)
             print("[LiveTracker] Message successfully edited.")
+            return show_data
             
         except APIError as e:
             print(f"[LiveTracker] An API error occurred: {e}")
             await message.edit(content=f"Could not connect to the elgoose.net API. Retrying in 5 minutes...", embed=None)
+            return None
         except Exception as e:
             print(f"[LiveTracker] An unexpected error occurred in _update_setlist: {e}")
             # Optional: Send a more generic error message to Discord
-            await message.edit(content="An unexpected error occurred. See logs for details.", embed=None) 
+            await message.edit(content="An unexpected error occurred. See logs for details.", embed=None)
+            return None 
