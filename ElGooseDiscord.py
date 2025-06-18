@@ -35,6 +35,38 @@ async def on_ready():
     except Exception as e:
         print(f"Failed to sync commands: {e}")
 
+def create_setlist_embed(show_data: dict, is_live: bool = False) -> discord.Embed:
+    """Creates a standardized Discord embed for setlist information."""
+    date_str = show_data.get('showdate')
+    parsed_date = datetime.datetime.strptime(date_str, '%Y-%m-%d')
+    
+    venue_name = html.unescape(show_data.get('venuename', 'Unknown Venue'))
+    location = show_data.get('location', 'Unknown Location')
+    
+    permalink = show_data.get('permalink')
+    show_url = f"https://elgoose.net/setlists/{permalink}" if permalink else "https://elgoose.net"
+
+    embed = discord.Embed(
+        title=f"Goose - {parsed_date.strftime('%B %d, %Y')}",
+        url=show_url,
+        description=f"**{venue_name}**\n{location}",
+        color=discord.Color.from_rgb(252, 186, 3)
+    )
+
+    for set_info in show_data.get('sets', []):
+        embed.add_field(name=set_info['name'], value=set_info['songs'] or "TBA", inline=False)
+    
+    if show_data.get('notes'):
+        embed.add_field(name="Show Notes", value=show_data['notes'], inline=False)
+    
+    if show_data.get('coach_notes'):
+        notes = "\n".join([f"{n['number']}. {n['text']}" for n in show_data['coach_notes']])
+        embed.add_field(name="Coach's Notes", value=notes, inline=False)
+
+    if is_live:
+        embed.set_footer(text="Live setlist tracking. Updates every 5 minutes.")
+    
+    return embed
 
 async def fetch_api_data(endpoint: str) -> dict:
     """Helper function to fetch data from the API with enhanced error handling"""
@@ -126,6 +158,9 @@ async def fetch_show_details(show_id: str, date: str = None) -> dict:
                             })
                             note_number += 1
                 
+                # Re-initialize sets to store the formatted string directly
+                sets = {}
+                
                 # Now process the songs with the footnote numbers
                 for song in goose_songs:
                     set_number = song.get('setnumber')
@@ -133,34 +168,32 @@ async def fetch_show_details(show_id: str, date: str = None) -> dict:
                     song_name = song.get('songname', '')
                     transition = song.get('transition', '')
                     footnote = song.get('footnote', '')
-                    # Overwrite shownotes from setlist if available, as it's more specific
+                    
                     if song.get('shownotes'):
                         show_notes = song.get('shownotes')
                     
-                    # Format the song text
                     song_text = song_name
                     if footnote:
                         song_text += f"[{footnote_map.get(footnote, '?')}]"
-                    if transition:
-                        # Handle special case for -> transition
-                        if transition.strip() == '->':
-                            song_text += ' ->'
-                        else:
-                            song_text += ' >'
                     
-                    # Add to the appropriate set
                     set_key = 'Encore' if set_type.lower() in ['encore', 'e'] else f'Set {set_number}'
                     if set_key not in sets:
-                        sets[set_key] = []
-                    sets[set_key].append(song_text)
+                        sets[set_key] = ""
+
+                    # Add the song and its transition to build the set string
+                    sets[set_key] += song_text + transition.strip() + " "
                 
-                # Convert sets to list format
+                # Convert sets to list format and clean up trailing characters
                 formatted_sets = []
-                for set_name, songs_list in sets.items():
-                    formatted_songs = [song.strip() for song in songs_list]
+                for set_name, songs_string in sets.items():
+                    # Strip trailing whitespace and any lingering separators
+                    cleaned_songs = songs_string.strip()
+                    if cleaned_songs.endswith(',') or cleaned_songs.endswith('>'):
+                        cleaned_songs = cleaned_songs[:-1].strip()
+
                     formatted_sets.append({
                         "name": set_name,
-                        "songs": ", ".join(formatted_songs)
+                        "songs": cleaned_songs
                     })
                 
                 # Merge the processed setlist data into our main show data object
@@ -247,75 +280,13 @@ async def setlist(interaction: discord.Interaction, date: str):
         # Print full show data for debugging
         print(f"[Setlist Debug] Full show data: {show_data}")
 
-        # Create embed
-        venue_name = html.unescape(show_data.get('venuename', 'Unknown')).lower().replace(' ', '-').replace(',', '')
-        location = show_data.get('location', 'Unknown').lower().replace(' ', '-').replace(',', '')
-        show_url = f"https://elgoose.net/setlists/goose-{parsed_date.strftime('%B-%d-%Y').lower()}-{venue_name}-{location}.html"
-        embed = discord.Embed(
-            title=f"Goose - {parsed_date.strftime('%B %d, %Y')}",
-            description=f"**{html.unescape(show_data.get('venuename', 'Unknown'))}**\n{show_data.get('location', 'Unknown')}",
-            color=discord.Color.from_rgb(252, 186, 3)  # Goose gold/orange color
-        )
-
-        # Add setlist information
-        if 'sets' in show_data and show_data['sets']:
-            for set_data in show_data['sets']:
-                set_name = set_data.get('name', 'Set')
-                songs = set_data.get('songs', '')
-                if songs:
-                    # Clean up formatting
-                    songs = re.sub(r'\s+', ' ', songs).strip()
-                    
-                    # Clean up formatting
-                    songs = re.sub(r'\s*,\s*,+\s*', ', ', songs)  # Remove multiple commas
-                    songs = re.sub(r',\s*$', '', songs)  # Remove trailing comma
-                    songs = re.sub(r'\s*>\s*,', ' >', songs)  # Fix space before > and remove comma
-                    songs = re.sub(r'\s*->\s*,', ' ->', songs)  # Fix space before -> and remove comma
-                    songs = re.sub(r'\s+', ' ', songs)  # Normalize spaces
-                    
-                    # Replace any set name variant with 'Encore'
-                    if set_name.lower() in ['set e', 'e', 'encore']:
-                        set_name = 'Encore'
-                    
-                    # Format set name with colon
-                    set_name = f"{set_name}:"
-                    
-                    # Add a newline after each set
-                    embed.add_field(
-                        name=set_name,
-                        value=f"{songs}\n",
-                        inline=False
-                    )
-        else:
-            embed.add_field(
-                name="Note:",
-                value="Setlist information is being updated. Please check back later.",
-                inline=False
-            )
-
-        # Add coach's notes if available
-        if show_data.get('coach_notes'):
-            coach_notes_text = "\n".join([f"{note['number']}. {note['text']}" for note in show_data['coach_notes']])
-            embed.add_field(
-                name="Coach's Notes",
-                value=coach_notes_text,
-                inline=False
-            )
+        # Create embed using the new centralized function
+        embed = create_setlist_embed(show_data)
         
-        # Add clickable URL under Coach's Notes
-        embed.add_field(
-            name="Full Setlist",
-            value=f"[View Full Setlist on elgoose.net]({show_url})",
-            inline=False
-        )
-        
-        # Add footer with link to full setlist
-        embed.set_footer(text="Click the link above to view the full setlist on elgoose.net")
-        embed.url = show_url  # This makes the entire embed clickable
-        
+        # Send response
         await interaction.followup.send(embed=embed)
-        print(f"[Setlist] Successfully sent response for {date}")
-        
+        print(f"[Setlist] Response sent successfully")
+
     except ValueError as e:
         print(f"[Setlist Error] Date format validation failed: {str(e)}")
         if not interaction.response.is_done():

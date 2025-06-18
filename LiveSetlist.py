@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 import html
 import pytz
 from exceptions import APIError
+from ElGooseDiscord import create_setlist_embed
 
 class LiveSetlist:
     def __init__(self, bot, channel_id, api_fetcher):
@@ -99,7 +100,7 @@ class LiveSetlist:
                 await message.edit(content=f"No show scheduled for today ({show_date}). Waiting for data...", embed=None)
                 return
 
-            embed = self._create_embed(show_data, show_date)
+            embed = create_setlist_embed(show_data, is_live=True)
             
             print("[LiveTracker] Embed created. Attempting to edit message.")
             await message.edit(content=None, embed=embed)
@@ -114,28 +115,6 @@ class LiveSetlist:
             await message.edit(content="An unexpected error occurred. See logs for details.", embed=None)
 
     def _create_embed(self, show_data, date):
-        parsed_date = datetime.strptime(date, '%Y-%m-%d')
-        venue_name = html.unescape(show_data.get('venuename', 'Unknown'))
-        location = show_data.get('location', 'Unknown')
-        
-        show_url = f"https://elgoose.net/setlists/goose-{parsed_date.strftime('%B-%d-%Y').lower()}-{venue_name.lower().replace(' ', '-')}-{location.lower().replace(' ', '-')}.html"
-
-        embed = discord.Embed(
-            title=f"Goose - {parsed_date.strftime('%B %d, %Y')}",
-            description=f"**{venue_name}**\n{location}",
-            color=discord.Color.from_rgb(252, 186, 3)
-        )
-
-        for set_info in show_data.get('sets', []):
-            embed.add_field(name=set_info['name'], value=set_info['songs'], inline=False)
-        
-        if show_data.get('notes'):
-            embed.add_field(name="Show Notes", value=show_data['notes'], inline=False)
-        
-        if show_data.get('coach_notes'):
-            notes = "\n".join([f"{n['number']}. {n['text']}" for n in show_data['coach_notes']])
-            embed.add_field(name="Coach's Notes", value=notes, inline=False)
-
-        embed.add_field(name="Full Setlist", value=f"[View on elgoose.net]({show_url})", inline=False)
-        embed.set_footer(text="Live setlist tracking. Updates every 5 minutes.")
-        return embed 
+        # This method is no longer used, but we'll keep it for now to avoid breaking anything
+        # that might be referencing it unexpectedly. It can be removed in a future cleanup.
+        pass 
