@@ -4,6 +4,15 @@ import html
 
 API_BASE_URL = "https://elgoose.net/api/v2"
 
+def format_song_name(song_name: str) -> str:
+    """
+    Formats the song name to title case, with specific exceptions.
+    """
+    exceptions = ['(satellite)', '(dawn)']
+    words = song_name.lower().split()
+    formatted_words = [word if word in exceptions else word.capitalize() for word in words]
+    return ' '.join(formatted_words)
+
 async def get_song_info(song_name: str) -> dict:
     """
     Fetches and processes song statistics from the ElGoose.net API.

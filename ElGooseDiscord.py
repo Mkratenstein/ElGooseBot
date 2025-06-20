@@ -11,8 +11,10 @@ import traceback  # Add this at the top
 from LiveSetlist import LiveSetlist
 from exceptions import APIError
 from embeds import create_setlist_embed, create_song_embed
-from song_info import get_song_info
+from song_info import get_song_info, format_song_name
 from dotenv import load_dotenv
+
+load_dotenv()
 
 # Bot setup with all intents
 intents = discord.Intents.default()
@@ -222,7 +224,8 @@ async def song(interaction: discord.Interaction, song_name: str):
     """
     await interaction.response.defer()  # Acknowledge the command may take time
     
-    song_data = await get_song_info(song_name)
+    formatted_song_name = format_song_name(song_name)
+    song_data = await get_song_info(formatted_song_name)
     
     if song_data:
         embed = create_song_embed(song_data)
