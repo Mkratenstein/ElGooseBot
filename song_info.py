@@ -52,8 +52,12 @@ async def get_song_info(song_name: str) -> dict:
             last_play = goose_plays[-1]
             second_last_play = goose_plays[-2] if times_played > 1 else None
 
+            song_slug = first_play.get('song_slug')
+            song_url = f"https://elgoose.net/song/{song_slug}" if song_slug else None
+
             song_info = {
                 "song_name": html.unescape(first_play.get("songname", "Unknown Song")),
+                "song_url": song_url,
                 "times_played": times_played,
                 "first_play": {
                     "date": first_play.get("showdate"),

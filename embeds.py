@@ -43,6 +43,7 @@ def create_song_embed(song_data: dict) -> discord.Embed:
 
     embed = discord.Embed(
         title=f"Song Stats: {song_data['song_name']}",
+        url=song_data.get('song_url'),
         color=discord.Color.from_rgb(252, 186, 3)
     )
 
@@ -51,8 +52,8 @@ def create_song_embed(song_data: dict) -> discord.Embed:
     embed.add_field(
         name="First Time Played", 
         value=(
-            f"**Date:** {first_play_info['date']}\n"
-            f"**Venue:** [{first_play_info['venue']}]({first_play_info['url']})"
+            f"**Date:** [{first_play_info['date']}]({first_play_info['url']})\n"
+            f"**Venue:** {first_play_info['venue']}"
         ), 
         inline=False
     )
@@ -60,8 +61,8 @@ def create_song_embed(song_data: dict) -> discord.Embed:
     embed.add_field(
         name="Last Time Played", 
         value=(
-            f"**Date:** {last_play_info['date']}\n"
-            f"**Venue:** [{last_play_info['venue']}]({last_play_info['url']})"
+            f"**Date:** [{last_play_info['date']}]({last_play_info['url']})\n"
+            f"**Venue:** {last_play_info['venue']}"
         ), 
         inline=False
     )
@@ -71,8 +72,8 @@ def create_song_embed(song_data: dict) -> discord.Embed:
         embed.add_field(
             name="Previous Time Played", 
             value=(
-                f"**Date:** {second_last_play_info['date']}\n"
-                f"**Venue:** [{second_last_play_info['venue']}]({second_last_play_info['url']})"
+                f"**Date:** [{second_last_play_info['date']}]({second_last_play_info['url']})\n"
+                f"**Venue:** {second_last_play_info['venue']}"
             ), 
             inline=False
         )
