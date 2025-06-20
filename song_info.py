@@ -39,11 +39,18 @@ async def get_song_info(song_name: str) -> dict:
                 return None  # Song not found or API error
 
             all_plays = data["data"]
-            times_played = len(all_plays)
             
-            first_play = all_plays[0]
-            last_play = all_plays[-1]
-            second_last_play = all_plays[-2] if times_played > 1 else None
+            # Filter for Goose plays only
+            goose_plays = [play for play in all_plays if play.get('artist', '').lower() == 'goose']
+            
+            if not goose_plays:
+                return None # No Goose plays found for this song
+
+            times_played = len(goose_plays)
+            
+            first_play = goose_plays[0]
+            last_play = goose_plays[-1]
+            second_last_play = goose_plays[-2] if times_played > 1 else None
 
             song_info = {
                 "song_name": html.unescape(first_play.get("songname", "Unknown Song")),
