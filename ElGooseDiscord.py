@@ -9,7 +9,7 @@ import re
 import html  # Add import for HTML entity decoding
 import traceback  # Add this at the top
 from LiveSetlist import LiveSetlist
-from exceptions import APIError, ShowNotFoundError
+from exceptions import APIError
 from embeds import create_setlist_embed, create_song_embed
 from song_info import get_song_info
 from dotenv import load_dotenv
