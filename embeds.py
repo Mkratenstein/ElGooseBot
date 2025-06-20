@@ -54,7 +54,7 @@ def create_song_embed(song_data: dict) -> discord.Embed:
             f"**Date:** {first_play_info['date']}\n"
             f"**Venue:** [{first_play_info['venue']}]({first_play_info['url']})"
         ), 
-        inline=True
+        inline=False
     )
     
     embed.add_field(
@@ -63,7 +63,18 @@ def create_song_embed(song_data: dict) -> discord.Embed:
             f"**Date:** {last_play_info['date']}\n"
             f"**Venue:** [{last_play_info['venue']}]({last_play_info['url']})"
         ), 
-        inline=True
+        inline=False
     )
     
+    if song_data.get("second_last_play"):
+        second_last_play_info = song_data['second_last_play']
+        embed.add_field(
+            name="Previous Time Played", 
+            value=(
+                f"**Date:** {second_last_play_info['date']}\n"
+                f"**Venue:** [{second_last_play_info['venue']}]({second_last_play_info['url']})"
+            ), 
+            inline=False
+        )
+
     return embed 

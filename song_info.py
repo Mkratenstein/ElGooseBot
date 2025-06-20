@@ -34,8 +34,9 @@ async def get_song_info(song_name: str) -> dict:
             
             first_play = all_plays[0]
             last_play = all_plays[-1]
+            second_last_play = all_plays[-2] if times_played > 1 else None
 
-            return {
+            song_info = {
                 "song_name": html.unescape(first_play.get("songname", "Unknown Song")),
                 "times_played": times_played,
                 "first_play": {
@@ -47,5 +48,15 @@ async def get_song_info(song_name: str) -> dict:
                     "date": last_play.get("showdate"),
                     "venue": html.unescape(last_play.get("venuename", "Unknown Venue")),
                     "url": f"https://elgoose.net/setlists/{last_play.get('permalink')}"
+                },
+                "second_last_play": None
+            }
+
+            if second_last_play:
+                song_info["second_last_play"] = {
+                    "date": second_last_play.get("showdate"),
+                    "venue": html.unescape(second_last_play.get("venuename", "Unknown Venue")),
+                    "url": f"https://elgoose.net/setlists/{second_last_play.get('permalink')}"
                 }
-            } 
+            
+            return song_info 
