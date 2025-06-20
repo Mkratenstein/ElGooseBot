@@ -9,8 +9,10 @@ import re
 import html  # Add import for HTML entity decoding
 import traceback  # Add this at the top
 from LiveSetlist import LiveSetlist
-from exceptions import APIError
-from embeds import create_setlist_embed
+from exceptions import APIError, ShowNotFoundError
+from embeds import create_setlist_embed, create_song_embed
+from song_info import get_song_info
+from dotenv import load_dotenv
 
 # Bot setup with all intents
 intents = discord.Intents.default()
@@ -213,6 +215,21 @@ async def setlist(interaction: discord.Interaction, date: str):
         else:
             await interaction.followup.send(error_msg, ephemeral=True)
 
+@bot.tree.command(name="song", description="Get statistics for a specific Goose song.")
+async def song(interaction: discord.Interaction, song_name: str):
+    """
+    Slash command to fetch and display statistics for a given song.
+    """
+    await interaction.response.defer()  # Acknowledge the command may take time
+    
+    song_data = await get_song_info(song_name)
+    
+    if song_data:
+        embed = create_song_embed(song_data)
+        await interaction.followup.send(embed=embed)
+    else:
+        await interaction.followup.send(f"Sorry, I couldn't find any data for the song '{song_name}'. Please check the spelling and try again.", ephemeral=True)
+
 @bot.tree.command(name="help", description="Display bot command usage")
 async def help(interaction: discord.Interaction):
     embed = discord.Embed(
@@ -223,6 +240,9 @@ async def help(interaction: discord.Interaction):
 
     commands = {
         "/setlist <date>": "Get setlist for a specific date (format: YYYY-MM-DD)",
+        "/song <song_name>": "Get statistics for a specific Goose song.",
+        "/live": "Start live setlist tracking for the current day's show.",
+        "/stop": "Stop live setlist tracking.",
         "/help": "Display this help message"
     }
 
@@ -247,11 +267,10 @@ async def stop(interaction: discord.Interaction):
         print("[StopCommand] Live setlist tracker is not initialized.")
         await interaction.response.send_message("Live setlist tracker is not initialized.", ephemeral=True)
         return
-        
-    print("[StopCommand] Calling tracker.stop().")
+    
     response = await live_setlist_tracker.stop()
-    print(f"[StopCommand] Received response from tracker: '{response}'")
     await interaction.response.send_message(response, ephemeral=True)
     print("[StopCommand] Sent confirmation message to user.")
 
-bot.run(TOKEN)
+if __name__ == "__main__":
+    bot.run(TOKEN)

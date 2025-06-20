@@ -34,3 +34,38 @@ def create_setlist_embed(show_data: dict, is_live: bool = False) -> discord.Embe
         embed.set_footer(text="Live setlist tracking. Updates every 5 minutes.")
     
     return embed 
+
+def create_song_embed(song_data: dict) -> discord.Embed:
+    """Creates a standardized Discord embed for song statistics."""
+    
+    first_play_info = song_data['first_play']
+    last_play_info = song_data['last_play']
+
+    embed = discord.Embed(
+        title=f"Song Stats: {song_data['song_name']}",
+        color=discord.Color.from_rgb(252, 186, 3)
+    )
+
+    embed.add_field(name="Total Times Played", value=str(song_data['times_played']), inline=False)
+    
+    embed.add_field(
+        name="First Time Played", 
+        value=(
+            f"**Date:** {first_play_info['date']}\n"
+            f"**Venue:** [{first_play_info['venue']}]({first_play_info['url']})\n"
+            f"**Location:** {first_play_info['location']}"
+        ), 
+        inline=True
+    )
+    
+    embed.add_field(
+        name="Last Time Played", 
+        value=(
+            f"**Date:** {last_play_info['date']}\n"
+            f"**Venue:** [{last_play_info['venue']}]({last_play_info['url']})\n"
+            f"**Location:** {last_play_info['location']}"
+        ), 
+        inline=True
+    )
+    
+    return embed 

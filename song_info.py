@@ -1,0 +1,53 @@
+import aiohttp
+import urllib.parse
+import html
+
+API_BASE_URL = "https://elgoose.net/api/v2"
+
+async def get_song_info(song_name: str) -> dict:
+    """
+    Fetches and processes song statistics from the ElGoose.net API.
+
+    Args:
+        song_name: The name of the song to look up.
+
+    Returns:
+        A dictionary containing the song's play count, first play, and last play details.
+        Returns None if the song is not found or an error occurs.
+    """
+    encoded_song_name = urllib.parse.quote_plus(song_name)
+    url = f"{API_BASE_URL}/setlists/songname/{encoded_song_name}.json?order_by=showdate&direction=asc"
+
+    async with aiohttp.ClientSession() as session:
+        async with session.get(url) as response:
+            if response.status != 200:
+                # Log error or handle non-200 responses
+                return None
+            
+            data = await response.json()
+
+            if data.get("error") or not data.get("data"):
+                return None  # Song not found or API error
+
+            all_plays = data["data"]
+            times_played = len(all_plays)
+            
+            first_play = all_plays[0]
+            last_play = all_plays[-1]
+
+            return {
+                "song_name": html.unescape(first_play.get("songname", "Unknown Song")),
+                "times_played": times_played,
+                "first_play": {
+                    "date": first_play.get("showdate"),
+                    "venue": html.unescape(first_play.get("venuename", "Unknown Venue")),
+                    "location": first_play.get("location", "Unknown Location"),
+                    "url": f"https://elgoose.net/setlists/{first_play.get('permalink')}"
+                },
+                "last_play": {
+                    "date": last_play.get("showdate"),
+                    "venue": html.unescape(last_play.get("venuename", "Unknown Venue")),
+                    "location": last_play.get("location", "Unknown Location"),
+                    "url": f"https://elgoose.net/setlists/{last_play.get('permalink')}"
+                }
+            } 
