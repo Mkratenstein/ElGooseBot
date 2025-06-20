@@ -52,8 +52,7 @@ def create_song_embed(song_data: dict) -> discord.Embed:
         name="First Time Played", 
         value=(
             f"**Date:** {first_play_info['date']}\n"
-            f"**Venue:** [{first_play_info['venue']}]({first_play_info['url']})\n"
-            f"**Location:** {first_play_info['location']}"
+            f"**Venue:** [{first_play_info['venue']}]({first_play_info['url']})"
         ), 
         inline=True
     )
@@ -62,8 +61,7 @@ def create_song_embed(song_data: dict) -> discord.Embed:
         name="Last Time Played", 
         value=(
             f"**Date:** {last_play_info['date']}\n"
-            f"**Venue:** [{last_play_info['venue']}]({last_play_info['url']})\n"
-            f"**Location:** {last_play_info['location']}"
+            f"**Venue:** [{last_play_info['venue']}]({last_play_info['url']})"
         ), 
         inline=True
     )

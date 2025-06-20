@@ -41,13 +41,11 @@ async def get_song_info(song_name: str) -> dict:
                 "first_play": {
                     "date": first_play.get("showdate"),
                     "venue": html.unescape(first_play.get("venuename", "Unknown Venue")),
-                    "location": first_play.get("location", "Unknown Location"),
                     "url": f"https://elgoose.net/setlists/{first_play.get('permalink')}"
                 },
                 "last_play": {
                     "date": last_play.get("showdate"),
                     "venue": html.unescape(last_play.get("venuename", "Unknown Venue")),
-                    "location": last_play.get("location", "Unknown Location"),
                     "url": f"https://elgoose.net/setlists/{last_play.get('permalink')}"
                 }
             } 
