@@ -8,6 +8,7 @@ from config import TOKEN
 import re
 import html  # Add import for HTML entity decoding
 import traceback  # Add this at the top
+import os
 from LiveSetlist import LiveSetlist
 from exceptions import APIError
 from embeds import create_setlist_embed, create_song_embed
@@ -26,7 +27,6 @@ API_BASE_URL = "https://elgoose.net/api/v2"
 # Remove default help command to implement custom one
 bot.remove_command('help')
 
-CHANNEL_ID = 723705469855596584
 live_setlist_tracker = None
 
 @bot.event
@@ -36,7 +36,20 @@ async def on_ready():
     try:
         synced = await bot.tree.sync()
         print(f"Synced {len(synced)} command(s)")
-        live_setlist_tracker = LiveSetlist(bot, CHANNEL_ID, fetch_show_details)
+
+        channel_id_str = os.getenv("CHANNEL_ID")
+        if channel_id_str:
+            try:
+                channel_id = int(channel_id_str)
+                live_setlist_tracker = LiveSetlist(bot, channel_id, fetch_show_details)
+                print(f"Live setlist tracker initialized for channel {channel_id}")
+            except ValueError:
+                print(f"Warning: Invalid CHANNEL_ID '{channel_id_str}' in environment. Must be an integer. Live features disabled.")
+            except Exception as e:
+                print(f"Error initializing LiveSetlist: {e}. Live features disabled.")
+        else:
+            print("Warning: CHANNEL_ID environment variable not set. Live features disabled.")
+
     except Exception as e:
         print(f"Failed to sync commands: {e}")
 
