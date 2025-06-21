@@ -26,7 +26,7 @@ API_BASE_URL = "https://elgoose.net/api/v2"
 # Remove default help command to implement custom one
 bot.remove_command('help')
 
-CHANNEL_ID = 1384576172922503271
+CHANNEL_ID = 723705469855596584
 live_setlist_tracker = None
 
 @bot.event
@@ -64,7 +64,7 @@ def _process_setlist_data(base_show_data: dict, setlist_data: list) -> dict:
                 note_number += 1
 
     for song in goose_songs:
-        set_key = 'Encore' if song.get('settype', '').lower() in ['encore', 'e'] else f"Set {song.get('setnumber')}"
+        set_key = 'Encore' if song.get('settype', '').lower() in ['encore', 'e'] or str(song.get('setnumber')).lower() == 'e' else f"Set {song.get('setnumber')}"
         if set_key not in sets:
             sets[set_key] = ""
 
